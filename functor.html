@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .container {
+        margin: 50px 50px;
+        display: flex;
+        flex-direction: column;
+      }
+      .submit {
+        margin-top: 20px;
+        height: 30px;
+        width: 100px;
+      }
+      #log {
+        margin-top: 20px;
+      }
+      input {
+        max-width: 400px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <label>Name:</label>
+      <input class="name-input" type="text" />
+      <input class="submit" type="submit" value="Submit" onclick="submit()"/>
+      <div id="log"></div>
+    </div>
+    <script>
+      var Just = function (value) {
+        return {
+          value: value,
+          map: function (f) {
+            return Just(f(value));
+          }
+        };
+      };
+
+      var Nothing = {
+        map: function() {
+          return Nothing;
+        }
+      }
+
+      // map: Functor f => (a -> b) -> f a -> f b
+      var map = function (f){
+        return function (m) {
+          return m.map(f);
+        }
+      }
+
+      // nameValidation: String -> Maybe String
+      var nameValidation = function (s) {
+        if (s.match('[A-Z]\w*') === null) {
+          return Nothing;
+        }
+        return Just(s);
+      }
+
+      // print: String -> Effect ()
+      var print = function (message) {
+        document.querySelector('#log').innerHTML += '<li>' + message + '</li>';
+      }
+
+      // clearLog: () -> Effect ()
+      var clearLog = function () {
+        document.querySelector('#log').innerHTML = '';
+      }
+
+      // submit: Maybe (Effect ())
+      function submit () {
+        var vname = nameValidation(document.querySelector('.name-input').value);
+        clearLog();
+        map(print)(vname);
+      }
+    </script>
+  </body>
+</html>

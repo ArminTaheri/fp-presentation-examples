@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .container {
+        margin: 50px 50px;
+        display: flex;
+        flex-direction: column;
+      }
+      .submit {
+        margin-top: 20px;
+        height: 30px;
+        width: 100px;
+      }
+      #log {
+        margin-top: 20px;
+      }
+      input {
+        max-width: 400px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <label>Name:</label>
+      <input class="name-input" type="text" />
+      <label>Email:</label>
+      <input class="email-input" type="text" />
+      <input class="submit" type="submit" value="Submit" onclick="submit()"/>
+      <div id="log"></div>
+    </div>
+    <script>
+      var Just = function (value) {
+        return {
+          type: 'JUST',
+          value: value,
+          map: function (f) {
+            return Just(f(value));
+          },
+          ap: function (m) {
+            return m.map(value);
+          }
+        };
+      };
+
+      var Nothing = {
+        type: 'NOTHING',
+        map: function() {
+          return Nothing;
+        },
+        ap: function() {
+          return Nothing
+        }
+      }
+
+      // map: Functor f => (a -> b) -> f a -> f b
+      var map = function (f) {
+        return function (m) {
+          return m.map(f);
+        }
+      }
+
+      // ap: Applicative f => f (a -> b) -> f a -> f b
+      var ap = function (m1) {
+        return function (m2) {
+          return m1.ap(m2);
+        }
+      }
+
+      // lift: Applicative f => (a -> b -> c) -> (f a -> f b -> f c)
+      var lift = function (op) {
+        return function (m1) {
+          return function (m2) {
+            return ap(map(op)(m1))(m2);
+          }
+        }
+      }
+      // validate: Regex -> String -> Maybe String
+      var validate = function(r) {
+        return function (s) {
+          if (s.match(r) === null) {
+            return Nothing;
+          }
+          return Just(s);
+        }
+      }
+
+      // nameValidation: String -> Maybe String
+      var nameValidation = validate(/[A-Z]\w*/);
+
+      // emailValidation: String -> Maybe String
+      var emailValidation = validate(/\w+\@\w+/);
+
+      // userToString: String -> String -> String
+      var userToString = function (name) {
+        return function (email) {
+          return '[Name: ' + name + ', Email: ' + email + ']';
+        }
+      }
+
+      // print: String -> Effect ()
+      var print = function (message) {
+        document.querySelector('#log').innerHTML += '<li>' + message + '</li>';
+      }
+
+      // clearLog: () -> Effect ()
+      var clearLog = function () {
+        document.querySelector('#log').innerHTML = '';
+      }
+
+      // submit: Maybe (Effect ())
+      function submit() {
+        var vname = nameValidation(document.querySelector('.name-input').value);
+        var vemail = emailValidation(document.querySelector('.email-input').value);
+        var userString = lift(userToString)(vname)(vemail);
+        clearLog()
+        map(print)(userString);
+      }
+    </script>
+  </body>
+</html>

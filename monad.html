@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .container {
+        margin: 50px 50px;
+        display: flex;
+        flex-direction: column;
+      }
+      .submit {
+        margin-top: 20px;
+        height: 30px;
+        width: 100px;
+      }
+      #log {
+        margin-top: 20px;
+      }
+      input {
+        max-width: 400px;
+      }
+    </style>
+    <script src="lib/database.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <label>Name:</label>
+      <input class="name-input" type="text" />
+      <label>Email:</label>
+      <input class="email-input" type="text" />
+      <input class="submit" type="submit" value="Submit" onclick="submit()"/>
+      <div id="log"></div>
+    </div>
+    <script>
+      var Success = function (value) {
+        return {
+          type: 'SUCCESS',
+          value: value,
+          map: function (f) {
+            return Success(f(value));
+          },
+          ap: function (m) {
+            return m.map(value);
+          },
+          chain: function (f) {
+            return f(value);
+          }
+        };
+      };
+
+      var Failure = function (errors) {
+        return {
+          type: 'FAILURE',
+          value: errors,
+          map: function() {
+            return Failure(errors);
+          },
+          ap: function(m) {
+            switch (m.type) {
+              case 'SUCCESS':
+                return Failure(errors);
+              case 'FAILURE':
+                return Failure(errors.concat(m.value));
+            }
+          },
+          chain: function () {
+            return Failure(errors);
+          }
+        };
+      };
+
+      // map: Functor f => (a -> b) -> f a -> f b
+      var map = function (f) {
+        return function (m) {
+          return m.map(f);
+        }
+      }
+
+      // ap: Applicative f => f (a -> b) -> f a -> f b
+      var ap = function (m1) {
+        return function (m2) {
+          return m1.ap(m2);
+        }
+      }
+
+      // validate: Regex -> String -> Validated String
+      var validate = function(r, errors) {
+        return function (s) {
+          if (s.match(r) === null) {
+            return Failure(errors);
+          }
+          return Success(s);
+        };
+      };
+
+      // nameValidation: String -> Validated String
+      var nameValidation = validate(/[A-Z]\w*/, ['Name must begin capitalized']);
+
+      // emailValidation: String -> Validated String
+      var emailValidation = validate(/\w+\@\w+/, ['Email must have form XXX@XXX']);
+
+      // lift: Applicative f => (a -> b -> c) -> (f a -> f b -> f c)
+      var lift = function (op) {
+        return function (m1) {
+          return function (m2) {
+            return ap(map(op)(m1))(m2);
+          };
+        };
+      };
+
+      // join: Monad m => m (m a) -> m a
+      var join = function (m) {
+        return m.chain(function () { return m.value; });
+      }
+
+      // getUsersDB: DB -> Validated [String]
+      var getUsersDB = function (db) {
+        try {
+          return Success(db.getAll());
+        } catch (e) {
+          return Failure([e.message]);
+        }
+      };
+
+      // createUserDB: DB -> String -> Validated Number
+      var createUserDB = function (db) {
+        return function (name) {
+          try {
+            return Success(db.addUser(name));
+          } catch (e) {
+            return Failure([e.message])
+          }
+        };
+      };
+
+      // setEmailDB: DB -> String -> Number -> Validated Number
+      var setEmailDB = function (db) {
+        return function (email) {
+          return function (id) {
+            try {
+              return Success(db.setEmail(id, email));
+            } catch (e) {
+              return Failure([e.message]);
+            }
+          };
+        };
+      };
+
+      // newUserDB: DB -> String -> String -> Validated Number
+      var newUserDB = function (db) {
+        return function (name) {
+          return function (email) {
+            return createUserDB(db)(name).chain(setEmailDB(db)(email));
+            // Or equivelently
+            // createUserDB(db)(name).chain(function (id) {
+            //   return setEmailDB(db)(email)(id);
+            // })
+            //
+          };
+        };
+      };
+
+      // print: String -> Effect ()
+      var print = function (message) {
+        document.querySelector('#log').innerHTML += '<li>' + message + '</li>';
+      };
+
+      // clearLog: () -> Effect ()
+      var clearLog = function () {
+        document.querySelector('#log').innerHTML = '';
+      }
+
+      // userToString: User -> String
+      var userToString = function (user) {
+        return '[ Name: ' + user.name + ', Email:'  + user.email + ' ]'
+      }
+
+      // printUsers: Validated [User] -> Effect()
+      var printUsers = function (users) {
+        switch(users.type) {
+          case 'SUCCESS':
+            var userStrings = map(userToString)(users.value)
+            return map(print)(userStrings);
+          case 'FAILURE':
+            return users.value.map(print);
+        }
+      }
+
+      // db: DB
+      var db = new Database();
+
+      // submit: Validated (Effect ())
+      function submit() {
+        var vname = nameValidation(document.querySelector('.name-input').value);
+        var vemail = emailValidation(document.querySelector('.email-input').value);
+        var users =
+          join(lift(newUserDB(db))(vname)(vemail))
+            .chain(function() { return getUsersDB(db); });
+        clearLog();
+        printUsers(users);
+      }
+    </script>
+  </body>
+</html>
