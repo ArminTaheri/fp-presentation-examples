@@ -82,7 +82,7 @@
         }
       }
 
-      // validate: Regex -> String -> Validated String
+      // validate: (Regex, [String]) -> String -> Validated String
       var validate = function(r, errors) {
         return function (s) {
           if (s.match(r) === null) {
@@ -109,7 +109,7 @@
 
       // join: Monad m => m (m a) -> m a
       var join = function (m) {
-        return m.chain(function () { return m.value; });
+        return m.chain(function (x) { return x; });
       }
 
       // getUsersDB: DB -> Validated [String]

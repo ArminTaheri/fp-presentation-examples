@@ -75,7 +75,7 @@
         }
       }
 
-      // validate: Regex -> String -> Validated String
+      // validate: (Regex, [String]) -> String -> Validated String
       var validate = function(r, errors) {
         return function (s) {
           if (s.match(r) === null) {
